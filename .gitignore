@@ -1,0 +1,6 @@
+build/
+!*.hex
+debug/
+dist/
+nbproject/
+Makefile
