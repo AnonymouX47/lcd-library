@@ -14,8 +14,8 @@ enum {LOW, HIGH};
 
 // Data Bus State
 #if LCD_MODE  // 8-bit
-#define DB_send() if (TRISB) TRISB = 0x00
-#define DB_receive() if (!TRISB) TRISB = 0xFF
+#define DB_send() TRISB = 0x00
+#define DB_receive() TRISB = 0xFF
 #else  // 4-bit
 #define DB_send() TRISB &= 0x0F
 #define DB_recieve() TRISB |= 0xF0
@@ -39,7 +39,7 @@ enum {LOW, HIGH};
 #define IR_write() RS = R_W = 0
 #define IR_read() RS = 0, R_W = 1
 #define DR_write() RS = 1, R_W = 0
-#define DR_read() RS = 1, R_W = 1
+#define DR_read() RS = R_W = 1
 
 // HD44780 Instructions (headers) and parameters
 #define CLR_DISP 0x01
@@ -81,7 +81,7 @@ enum {LOW, HIGH};
 // Enable signal
 #define enable() \
 EN = 1;\
-__delay_us(1);\
+__delay_us(2);\
 EN = 0
 
 // RAM designations
@@ -169,6 +169,7 @@ unsigned char read_data(void)
 void lcd_clr_disp(void)
 {
     send_ins(CLR_DISP);
+    __delay_ms(2);
 }
 
 void lcd_return_home(void)
@@ -242,22 +243,24 @@ unsigned char (*lcd_read_char)(void) = &read_data;
 void lcd_wait(void)
 {
     lcd_busy();
-    while(BF);
+    RD3 = 1;
+    while (BF);
+    RD3 = 0;
 }
 
 void lcd_init(bool n, bool f)
 {
     TRISD = 0x00;
     lcd_function_set(LCD_MODE, n, f);
-    lcd_wait();
+    __delay_us(100);
     lcd_display_set(LOW, LOW, LOW);  // Display OFF
-    lcd_wait();
+    __delay_us(100);
     lcd_clr_disp();  // Display Clear
-    lcd_wait();
+    __delay_ms(2);
     lcd_entry_mode(HIGH, LOW);  // Entry mode set
-    lcd_wait();
-    // lcd_display_set(1, 1, 1);  // Display ON, Cursor ON, Blinking ON
-    // lcd_wait();
+    __delay_us(100);
+    lcd_display_set(1, 1, 1);  // Display ON, Cursor ON, Blinking ON
+    __delay_us(100);
 }
 
 
