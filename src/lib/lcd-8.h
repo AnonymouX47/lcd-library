@@ -10,11 +10,18 @@
 
 #include <stdbool.h>
 
-// MCU to LCD connection
+enum {LOW, HIGH};
 
-// Data Bus
+// Data Bus State
+#if LCD_MODE  // 8-bit
 #define DB_send() if (TRISB) TRISB = 0x00
 #define DB_receive() if (!TRISB) TRISB = 0xFF
+#else  // 4-bit
+#define DB_send() TRISB &= 0x0F
+#define DB_recieve() TRISB |= 0xF0
+#endif
+
+// MCU to LCD connection
 #define DB_DATA PORTB
 #define DB0 RB0
 #define DB1 RB1
@@ -24,7 +31,6 @@
 #define DB5 RB5
 #define DB6 RB6
 #define DB7 RB7
-
 #define RS RD7
 #define R_W RD6
 #define EN RD5
@@ -53,9 +59,18 @@
 #define R_L DB2
 
 #define FUNCTION_SET 0x20
+// Data length
 #define DL DB4
+#define _4bit 0
+#define _8bit 1
+// No of display lines
 #define N DB3
+#define _1line 0
+#define _2line 1
+// Character font
 #define F DB2
+#define _5x8 0
+#define _5x10 1
 
 #define SET_CGRAM_ADR 0x40
 #define SET_DDRAM_ADR 0x80
@@ -64,150 +79,186 @@
 #define BF DB7
 
 // Enable signal
-#define enable()    EN = 1;\
-                    __delay_us(1);\
-                    EN = 0
+#define enable() \
+EN = 1;\
+__delay_us(1);\
+EN = 0
 
 // RAM designations
 #define DDRAM 0
 #define CGRAM 1
-bool lcd_RAM;
 
-bool lcd_lines;  // same as `N`
 
-TRISD = 0x00;
+bool lcd_RAM, lcd_lines;
+void lcd_wait(void);
+
+
+// Data Bus Functions START
+
+#if LCD_MODE  // 8-bit
+
+void send_ins(unsigned char data)
+{
+    DB_send(); IR_write();
+    DB_DATA = data;
+    enable();
+    lcd_wait();
+}
+
+void send_data(unsigned char data)
+{
+    DB_send(); DR_write();
+    DB_DATA = data;
+    enable();
+    lcd_wait();
+}
+
+unsigned char read_data(void)
+{
+    DB_receive(); DR_read();
+    enable();
+    lcd_wait();
+    return DB_DATA;
+}
+
+#else  // 4-bit
+
+#define send_nibble(nib) \
+DB4 = (nib) & 1;\
+DB5 = (nib) >> 1 & 1;\
+DB6 = (nib) >> 2 & 1;\
+DB7 = (nib) >> 3 & 1
+
+void send_ins(unsigned char ins)
+{
+    DB_send(); IR_write();
+    send_nibble(data >> 4);  // upper nibble
+    enable(); lcd_wait();
+    IR_write();
+    send_nibble(data & 0x0F);  // lower nibble
+    enable(); lcd_wait();
+}
+
+void send_data(unsigned char data)
+{
+    DB_send(); DR_write();
+    send_nibble(data >> 4);  // upper nibble
+    enable(); lcd_wait();
+    DR_write();
+    send_nibble(data & 0x0F);  // lower nibble
+    enable(); lcd_wait();
+}
+
+unsigned char read_data(void)
+{
+    DB_receive(); DR_read();
+    enable(); lcd_wait();
+    unsigned char upper = DB_DATA & 0xF0;
+    DR_read();
+    enable(); lcd_wait();
+    
+    return upper | DB_DATA >> 4;
+}
+
+#endif
+
+// Data Bus Functions END
 
 // Instructions START
-bool lcd_busy(void);
 
 void lcd_clr_disp(void)
 {
-    IR_write(); DB_send();
-    DB_DATA = CLR_DISP;
-    enable();
-    while (lcd_busy());
+    send_ins(CLR_DISP);
 }
 
 void lcd_return_home(void)
 {
-    IR_write(); DB_send();
-    DB_DATA = RETURN_HOME;
-    enable();
-    while (lcd_busy());
+    send_ins(RETURN_HOME);
 }
 
 void lcd_entry_mode(bool i_d, bool s)
 {
-    IR_write(); DB_send();
-    DB_DATA = ENTRY_MODE;
-    I_D = i_d, S = s;
-    enable();
-    while (lcd_busy());
+    send_ins(ENTRY_MODE | i_d << 1 | s);
 }
 
 void lcd_display_set(bool d, bool c, bool b)
 {
-    IR_write(); DB_send();
-    DB_DATA = DISPLAY_SET;
-    D = d, C = c, B = b;
-    enable();
-    while (lcd_busy());
+    send_ins(DISPLAY_SET | d << 2 | c << 1 | b);
 }
 
 void lcd_cur_disp_shift(bool s_c, bool r_l)
 {
-    IR_write(); DB_send();
-    DB_DATA = CUR_DISP_SHIFT;
-    S_C = s_c, R_L = r_l;
-    enable();
-    while (lcd_busy());
+    send_ins(CUR_DISP_SHIFT | s_c << 3 | r_l << 2);
 }
 
 void lcd_function_set(bool dl, bool n, bool f)
 {
-    IR_write(); DB_send();
-    DB_DATA = FUNCTION_SET;
-    DL = dl, N = n, F = f;
-    enable();
-    while (lcd_busy());
+    send_ins(FUNCTION_SET | dl << 4 | n << 3 | f << 2);
     lcd_lines = n;
 }
 
 bool lcd_set_cgram_adr(unsigned char address)
 {
-    IR_write(); DB_send();
     if (address < 0x40) {
         lcd_RAM = CGRAM;
-        DB_DATA = SET_CGRAM_ADR | address;
+        send_ins(SET_CGRAM_ADR | address);
     } else
         return false;
-    enable();
-    while (lcd_busy());
     
     return true;
 }
 
 bool lcd_set_ddram_adr(unsigned char address)
 {
-    IR_write(); DB_send();
-    if (address < (lcd_lines ? 0x68 : 0x50)) {
+    if (address < (lcd_lines == _1line ? 0x50 : 0x68)) {
         lcd_RAM = DDRAM;
-        DB_DATA = SET_DDRAM_ADR | address;
+        send_ins(SET_DDRAM_ADR | address);
     } else
         return false;
-    enable();
-    while (lcd_busy());
     
     return true;
 }
 
-bool lcd_busy(void)
+void lcd_busy(void)
 {
     IR_read(); DB_receive();
     enable();
-    while (lcd_busy());
-    return BF;
 }
 
 unsigned char lcd_read_address(void)
 {
     IR_read(); DB_receive();
     enable();
-    while (lcd_busy());
-    return (DB_DATA << 1) >> 1;
+    return DB_DATA & 0x7F;
 }
 
-void lcd_write_char(unsigned char data)
-{
-    DR_write(); DB_send();
-    DB_DATA = data;
-    enable();
-    while (lcd_busy());
-}
+void (*lcd_write_char)(unsigned char) = &send_data;
 
-unsigned char lcd_read_char(void)
-{
-    DR_read(); DB_receive();
-    enable();
-    while (lcd_busy());
-    return DB_DATA;
-}
+unsigned char (*lcd_read_char)(void) = &read_data;
 
 // Instructions END
 
 
+void lcd_wait(void)
+{
+    lcd_busy();
+    while(BF);
+}
+
 void lcd_init(bool n, bool f)
 {
-    lcd_function_set(1, n, f);
-    while (lcd_busy());
-    lcd_display_set(0, 0, 0);  // Display OFF
-    while (lcd_busy());
-    lcd_clr_disp();
-    while (lcd_busy());
-    lcd_entry_mode(1, 0);
-    while (lcd_busy());
+    TRISD = 0x00;
+    lcd_function_set(LCD_MODE, n, f);
+    lcd_wait();
+    lcd_display_set(LOW, LOW, LOW);  // Display OFF
+    lcd_wait();
+    lcd_clr_disp();  // Display Clear
+    lcd_wait();
+    lcd_entry_mode(HIGH, LOW);  // Entry mode set
+    lcd_wait();
     // lcd_display_set(1, 1, 1);  // Display ON, Cursor ON, Blinking ON
-    // while (lcd_busy());
+    // lcd_wait();
 }
+
 
 #endif	/* LCD_8_H */
