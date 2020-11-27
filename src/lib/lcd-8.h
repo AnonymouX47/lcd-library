@@ -195,4 +195,19 @@ unsigned char lcd_read_char(void)
 
 // Instructions END
 
+
+void lcd_init(bool n, bool f)
+{
+    lcd_function_set(1, n, f);
+    while (lcd_busy());
+    lcd_display_set(0, 0, 0);  // Display OFF
+    while (lcd_busy());
+    lcd_clr_disp();
+    while (lcd_busy());
+    lcd_entry_mode(1, 0);
+    while (lcd_busy());
+    // lcd_display_set(1, 1, 1);  // Display ON, Cursor ON, Blinking ON
+    // while (lcd_busy());
+}
+
 #endif	/* LCD_8_H */
