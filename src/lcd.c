@@ -12,11 +12,18 @@
 #pragma config CP = OFF         // Flash Program Memory Code Protection bit (Code protection off)
 
 #include <xc.h>
-#define XTAL_FREQ 20000000
+#define _XTAL_FREQ 20000000
 
+#define LCD_MODE 1
 #include "lib/lcd-8.h"
 
 void main(void)
 {
-    ;
+    TRISA = TRISB = TRISC = TRISD = TRISE = 0x00;
+    PORTA = PORTB = PORTC = PORTD = PORTE = 0x00;
+    
+    lcd_init(_2line, _5x8);
+    lcd_write_char('A');
+    RD4 = 1;
+    __delay_ms(2000);
 }
