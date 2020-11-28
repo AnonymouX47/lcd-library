@@ -25,13 +25,19 @@ void main(void)
     lcd_init(_2line, _5x8);
     
     char c;
+//    lcd_return_home();
+//    lcd_set_ddram_adr(0x00);
     while (1) {
-        c = 'A';
-        for (int i = 16; i--;) {
-            lcd_write_char(c++);
+        c = '0';
+        for (int i = 10; i--;) {
+            lcd_write_char(lcd_read_address() + lcd_read_char() + '0');
             __delay_ms(500);
+            lcd_cur_disp_shift(0, 1);
+            lcd_cur_disp_shift(0, 0);
+//            lcd_cur_disp_shift(1, 0);
         }
 
-        lcd_clr_disp();
+        // lcd_clr_disp();
+        
     }
 }

@@ -81,7 +81,7 @@ enum {LOW, HIGH};
 // Enable signal
 #define enable() \
 EN = 1;\
-__delay_us(2);\
+__delay_us(1);\
 EN = 0
 
 // RAM designations
@@ -175,6 +175,7 @@ void lcd_clr_disp(void)
 void lcd_return_home(void)
 {
     send_ins(RETURN_HOME);
+    __delay_ms(2);
 }
 
 void lcd_entry_mode(bool i_d, bool s)
@@ -222,14 +223,24 @@ bool lcd_set_ddram_adr(unsigned char address)
 
 void lcd_busy(void)
 {
-    IR_read(); DB_receive();
+    DB_receive(); IR_read();
     enable();
+    while (BF);
 }
 
 unsigned char lcd_read_address(void)
 {
-    IR_read(); DB_receive();
+    DB_receive(); IR_read();
     enable();
+    lcd_wait();
+    
+    if (LCD_MODE == _4bit) {
+        unsigned char upper = DB_DATA & 0x70;
+        enable();
+        lcd_wait();
+        return upper | DB_DATA >> 4;
+    }
+    
     return DB_DATA & 0x7F;
 }
 
@@ -242,25 +253,18 @@ unsigned char (*lcd_read_char)(void) = &read_data;
 
 void lcd_wait(void)
 {
-    lcd_busy();
-    RD3 = 1;
-    while (BF);
-    RD3 = 0;
+    __delay_us(40);
 }
 
 void lcd_init(bool n, bool f)
 {
     TRISD = 0x00;
     lcd_function_set(LCD_MODE, n, f);
-    __delay_us(100);
+    lcd_function_set(LCD_MODE, n, f);
     lcd_display_set(LOW, LOW, LOW);  // Display OFF
-    __delay_us(100);
     lcd_clr_disp();  // Display Clear
-    __delay_ms(2);
     lcd_entry_mode(HIGH, LOW);  // Entry mode set
-    __delay_us(100);
     lcd_display_set(1, 1, 1);  // Display ON, Cursor ON, Blinking ON
-    __delay_us(100);
 }
 
 
