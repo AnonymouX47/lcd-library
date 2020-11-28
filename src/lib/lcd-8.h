@@ -18,7 +18,7 @@ enum {LOW, HIGH};
 #define DB_receive() TRISB = 0xFF
 #else  // 4-bit
 #define DB_send() TRISB &= 0x0F
-#define DB_recieve() TRISB |= 0xF0
+#define DB_receive() TRISB |= 0xF0
 #endif
 
 // MCU to LCD connection
@@ -114,52 +114,43 @@ void send_ins(unsigned char data)
 {
     DB_send(); IR_write();
     DB_DATA = data;
-    enable();
-    lcd_wait();
+    enable(); lcd_wait();
 }
 
 void send_data(unsigned char data)
 {
     DB_send(); DR_write();
     DB_DATA = data;
-    enable();
-    lcd_wait();
+    enable(); lcd_wait();
 }
 
 unsigned char read_data(void)
 {
     DB_receive(); DR_read();
-    enable();
-    lcd_wait();
+    enable(); lcd_wait();
     return DB_DATA;
 }
 
 #else  // 4-bit
 
 #define send_nibble(nib) \
-DB4 = (nib) & 1;\
-DB5 = (nib) >> 1 & 1;\
-DB6 = (nib) >> 2 & 1;\
-DB7 = (nib) >> 3 & 1
+    DB_DATA = (DB_DATA & 0x0f) | (nib & 0xf0);\
+    enable(); lcd_wait()
 
 void send_ins(unsigned char ins)
 {
     DB_send(); IR_write();
-    send_nibble(data >> 4);  // upper nibble
-    enable(); lcd_wait();
-    IR_write();
-    send_nibble(data & 0x0F);  // lower nibble
-    enable(); lcd_wait();
+    send_nibble(ins);  // upper nibble
+    // IR_write();
+    send_nibble(ins << 4);  // lower nibble
 }
 
 void send_data(unsigned char data)
 {
     DB_send(); DR_write();
-    send_nibble(data >> 4);  // upper nibble
-    enable(); lcd_wait();
-    DR_write();
-    send_nibble(data & 0x0F);  // lower nibble
-    enable(); lcd_wait();
+    send_nibble(data);  // upper nibble
+    // DR_write();
+    send_nibble(data << 4);  // lower nibble
 }
 
 unsigned char read_data(void)
@@ -167,7 +158,7 @@ unsigned char read_data(void)
     DB_receive(); DR_read();
     enable(); lcd_wait();
     unsigned char upper = DB_DATA & 0xF0;
-    DR_read();
+    // DR_read();
     enable(); lcd_wait();
     
     return upper | DB_DATA >> 4;
@@ -248,6 +239,7 @@ unsigned char lcd_read_address(void)
     lcd_wait();
     
     if (LCD_MODE == _4bit) {
+        RD2 = 1;
         unsigned char upper = DB_DATA & 0x70;
         enable();
         lcd_wait();
@@ -274,7 +266,15 @@ void lcd_wait(void)
 void lcd_init(bool n, bool f)
 {
     TRISD = 0x00;
-    lcd_function_set(LCD_MODE, n, f);
+
+// The first 'function set' must be sent in 8-bit mode due to internal initialization
+#if LCD_MODE
+    lcd_function_set(_8bit, n, f);
+#else
+    DB_send(); IR_write();
+    send_nibble((FUNCTION_SET | n << 3 | f << 2));
+    send_nibble((FUNCTION_SET | n << 3 | f << 2));
+#endif
     lcd_function_set(LCD_MODE, n, f);
     lcd_display_set(LOW, LOW, LOW);  // Display OFF
     lcd_clr_disp();  // Display Clear

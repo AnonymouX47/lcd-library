@@ -1,7 +1,7 @@
 build/
-!*.hex
 debug/
 dist/
+!*.hex
 nbproject/
 Makefile
 *.workspace

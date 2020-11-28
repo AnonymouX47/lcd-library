@@ -14,7 +14,7 @@
 #include <xc.h>
 #define _XTAL_FREQ 20000000
 
-#define LCD_MODE 1
+#define LCD_MODE 0
 #include "lib/lcd-8.h"
 
 void main(void)
@@ -22,16 +22,15 @@ void main(void)
     TRISA = TRISB = TRISC = TRISD = TRISE = 0x00;
     PORTA = PORTB = PORTC = PORTD = PORTE = 0x00;
     
-    lcd_init(_2line, _5x8);
+    lcd_init(_2line, _5x10);
     
-    char c, line;
-//    lcd_return_home();
-//    lcd_set_ddram_adr(0x00);
+    char c, line = 0;
     lcd_set_cursor(line, 0);
+//    RB2 = 1;
     while (1) {
-        c = '0';
+        c = 'a';
         for (int i = 10; i--;) {
-            lcd_write_char(c++);
+            lcd_write_char(c++ | 0x80);
             __delay_ms(500);
 //            lcd_cursor_right(1);
 //            lcd_shift_right(1);
