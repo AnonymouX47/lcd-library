@@ -88,6 +88,24 @@ EN = 0
 #define DDRAM 0
 #define CGRAM 1
 
+// Cursor control macros
+#define FIRST_ROW 0
+#define SECOND_ROW 1
+
+
+#define LINE1_BEGIN 0x00
+#if // ??? LCD_MODE
+#define LINE1_END 0x27
+#else
+#define LINE1_END 0x4F
+#endif
+#define LINE2_BEGIN 0x40
+#define LINE2_END 0x67
+
+// Other macros
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
+
 
 bool lcd_RAM, lcd_lines;
 void lcd_wait(void);
@@ -212,7 +230,7 @@ bool lcd_set_cgram_adr(unsigned char address)
 
 bool lcd_set_ddram_adr(unsigned char address)
 {
-    if (address < (lcd_lines == _1line ? 0x50 : 0x68)) {
+    if (address <= (lcd_lines == _1line ? LINE1_END : LINE2_END)) {
         lcd_RAM = DDRAM;
         send_ins(SET_DDRAM_ADR | address);
     } else
@@ -251,6 +269,8 @@ unsigned char (*lcd_read_char)(void) = &read_data;
 // Instructions END
 
 
+// Utility functions
+
 void lcd_wait(void)
 {
     __delay_us(40);
@@ -267,5 +287,40 @@ void lcd_init(bool n, bool f)
     lcd_display_set(1, 1, 1);  // Display ON, Cursor ON, Blinking ON
 }
 
+void lcd_set_cursor(bool row, unsigned char col)
+{
+    // `LINE1_END` is also the maximum address offset per line in either interface mode
+    if (lcd_lines == _2line)
+        lcd_set_ddram_adr((row ? LINE2_BEGIN : LINE1_BEGIN) + min(col, LINE1_END));
+    else
+        lcd_set_ddram_adr(LINE1_BEGIN + min(col, LINE1_END));
+}
+
+// For cursor movement and display shifts
+#define CURSOR 0
+#define DISPLAY 1
+#define LEFT 0
+#define RIGHT 1
+
+/* move the cursor left n times */
+void lcd_cursor_left(unsigned char n)
+{
+    while(n--) lcd_cur_disp_shift(CURSOR, LEFT);
+}
+
+void lcd_cursor_right(unsigned char n)
+{
+    while(n--) lcd_cur_disp_shift(CURSOR, RIGHT);
+}
+
+void lcd_shift_left(unsigned char n)
+{
+    while(n--) lcd_cur_disp_shift(DISPLAY, LEFT);
+}
+
+void lcd_shift_right(unsigned char n)
+{
+    while(n--) lcd_cur_disp_shift(DISPLAY, RIGHT);
+}
 
 #endif	/* LCD_8_H */
