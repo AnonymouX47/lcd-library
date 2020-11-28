@@ -4,3 +4,4 @@ debug/
 dist/
 nbproject/
 Makefile
+*.workspace
