@@ -15,7 +15,7 @@
 #define _XTAL_FREQ 20000000
 
 #define LCD_MODE 0
-#include "lib/lcd-8.h"
+#include "lib/lcd.h"
 
 void main(void)
 {

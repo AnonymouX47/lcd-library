@@ -1,7 +1,4 @@
-build/
-debug/
-dist/
+mplab/
+dist/*
 !*.hex
-nbproject/
-Makefile
 *.workspace
