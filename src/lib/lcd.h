@@ -1,5 +1,5 @@
 /* 
- * File:   lcd-8.h
+ * File:   lcd.h
  * Author: anonymoux47
  *
  * Created on 26 November 2020, 23:54
@@ -110,25 +110,12 @@ void lcd_wait(void);
 
 #if LCD_MODE  // 8-bit
 
-void send_ins(unsigned char data)
+void lcd_send(bool reg, unsigned char data)
 {
-    DB_send(); IR_write();
+    DB_send();
+    if (reg) DR_write(); else IR_write();
     DB_DATA = data;
     enable(); lcd_wait();
-}
-
-void send_data(unsigned char data)
-{
-    DB_send(); DR_write();
-    DB_DATA = data;
-    enable(); lcd_wait();
-}
-
-unsigned char read_data(void)
-{
-    DB_receive(); DR_read();
-    enable(); lcd_wait();
-    return DB_DATA;
 }
 
 #else  // 4-bit
@@ -137,31 +124,13 @@ unsigned char read_data(void)
     DB_DATA = (DB_DATA & 0x0f) | (nib & 0xf0);\
     enable(); lcd_wait()
 
-void send_ins(unsigned char ins)
+void lcd_send(bool reg, unsigned char data)
 {
-    DB_send(); IR_write();
-    send_nibble(ins);  // upper nibble
-    // IR_write();
-    send_nibble(ins << 4);  // lower nibble
-}
-
-void send_data(unsigned char data)
-{
-    DB_send(); DR_write();
+    DB_send();
+    if (reg) DR_write(); else IR_write();
     send_nibble(data);  // upper nibble
     // DR_write();
     send_nibble(data << 4);  // lower nibble
-}
-
-unsigned char read_data(void)
-{
-    DB_receive(); DR_read();
-    enable(); lcd_wait();
-    unsigned char upper = DB_DATA & 0xF0;
-    // DR_read();
-    enable(); lcd_wait();
-    
-    return upper | DB_DATA >> 4;
 }
 
 #endif
@@ -172,34 +141,34 @@ unsigned char read_data(void)
 
 void lcd_clr_disp(void)
 {
-    send_ins(CLR_DISP);
+    lcd_send(LOW, CLR_DISP);
     __delay_ms(2);
 }
 
 void lcd_return_home(void)
 {
-    send_ins(RETURN_HOME);
+    lcd_send(LOW, RETURN_HOME);
     __delay_ms(2);
 }
 
 void lcd_entry_mode(bool i_d, bool s)
 {
-    send_ins(ENTRY_MODE | i_d << 1 | s);
+    lcd_send(LOW, ENTRY_MODE | i_d << 1 | s);
 }
 
 void lcd_display_set(bool d, bool c, bool b)
 {
-    send_ins(DISPLAY_SET | d << 2 | c << 1 | b);
+    lcd_send(LOW, DISPLAY_SET | d << 2 | c << 1 | b);
 }
 
 void lcd_cur_disp_shift(bool s_c, bool r_l)
 {
-    send_ins(CUR_DISP_SHIFT | s_c << 3 | r_l << 2);
+    lcd_send(LOW, CUR_DISP_SHIFT | s_c << 3 | r_l << 2);
 }
 
 void lcd_function_set(bool dl, bool n, bool f)
 {
-    send_ins(FUNCTION_SET | dl << 4 | n << 3 | f << 2);
+    lcd_send(LOW, FUNCTION_SET | dl << 4 | n << 3 | f << 2);
     lcd_lines = n;
 }
 
@@ -207,7 +176,7 @@ bool lcd_set_cgram_adr(unsigned char address)
 {
     if (address < 0x40) {
         lcd_RAM = CGRAM;
-        send_ins(SET_CGRAM_ADR | address);
+        lcd_send(LOW, SET_CGRAM_ADR | address);
     } else
         return false;
     
@@ -218,7 +187,7 @@ bool lcd_set_ddram_adr(unsigned char address)
 {
     if (address <= (lcd_lines == _1line ? LINE1_END1 : LINE2_END)) {
         lcd_RAM = DDRAM;
-        send_ins(SET_DDRAM_ADR | address);
+        lcd_send(LOW, SET_DDRAM_ADR | address);
     } else
         return false;
     
@@ -249,9 +218,31 @@ unsigned char lcd_read_address(void)
     return DB_DATA & 0x7F;
 }
 
-void (*lcd_write_char)(unsigned char) = &send_data;
+#define lcd_write_char(data) lcd_send(HIGH, data)
 
-unsigned char (*lcd_read_char)(void) = &read_data;
+#if LCD_MODE  // 8-bit
+
+unsigned char lcd_read_char(void)
+{
+    DB_receive(); DR_read();
+    enable(); lcd_wait();
+    return DB_DATA;
+}
+
+#else  // 4-bit
+
+unsigned char lcd_read_char(void)
+{
+    DB_receive(); DR_read();
+    enable(); lcd_wait();
+    unsigned char upper = DB_DATA & 0xF0;
+    // DR_read();
+    enable(); lcd_wait();
+    
+    return upper | DB_DATA >> 4;
+}
+
+#endif
 
 // Instructions END
 
@@ -268,6 +259,8 @@ void lcd_init(bool n, bool f)
     TRISD = 0x00;
 
 // The first 'function set' must be sent in 8-bit mode due to internal initialization
+// Turned out 'function set' was required twice (in 8-bit mode) to take effect.
+
 #if LCD_MODE
     lcd_function_set(_8bit, n, f);
 #else
@@ -277,7 +270,7 @@ void lcd_init(bool n, bool f)
 #endif
     lcd_function_set(LCD_MODE, n, f);
     lcd_display_set(LOW, LOW, LOW);  // Display OFF
-    lcd_clr_disp();  // Display Clear
+    lcd_clr_disp();  // Clear display
     lcd_entry_mode(HIGH, LOW);  // Entry mode set
     lcd_display_set(1, 1, 1);  // Display ON, Cursor ON, Blinking ON
 }
