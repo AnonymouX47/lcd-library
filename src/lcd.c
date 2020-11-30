@@ -27,15 +27,14 @@ void main(void)
     char c = 'a';
     unsigned char line=0, col;
     lcd_set_cursor(line, 0);
-//    RB2 = 1;
     while (1) {
         c = (c == 'z' || c == 'a') ? 'a' : c + 1;
         col = 0;
         for (int i = 13; i--;) lcd_write_char(c++);
         for (int i = 13; i--;) {
-        lcd_set_cursor(FIRST_ROW, col);
-        c = lcd_read_char();
-        lcd_set_cursor(SECOND_ROW, col++);
+            lcd_set_cursor(FIRST_ROW, col);
+            c = lcd_read_char();
+            lcd_set_cursor(SECOND_ROW, col++);
             lcd_write_char(c);
             __delay_ms(500);
         }
