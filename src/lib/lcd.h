@@ -6,7 +6,7 @@
  */
 
 #ifndef LCD_8_H
-#define	LCD_8_H
+#define LCD_8_H
 
 #include <stdbool.h>
 
@@ -301,4 +301,4 @@ void lcd_shift_right(unsigned char n)
     while(n--) lcd_cur_disp_shift(DISPLAY, RIGHT);
 }
 
-#endif	/* LCD_8_H */
+#endif  /* LCD_8_H */
