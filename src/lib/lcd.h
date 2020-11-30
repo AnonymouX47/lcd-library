@@ -118,6 +118,14 @@ void lcd_send(bool reg, unsigned char data)
     enable(); lcd_wait();
 }
 
+unsigned char lcd_read(bool reg)
+{
+    DB_receive();
+    if (reg) DR_read(); else IR_read();
+    enable(); lcd_wait();
+    return DB_DATA;
+}
+
 #else  // 4-bit
 
 #define send_nibble(nib) \
@@ -129,8 +137,18 @@ void lcd_send(bool reg, unsigned char data)
     DB_send();
     if (reg) DR_write(); else IR_write();
     send_nibble(data);  // upper nibble
-    // DR_write();
     send_nibble(data << 4);  // lower nibble
+}
+
+unsigned char lcd_read(bool reg)
+{
+    DB_receive();
+    if (reg) DR_read(); else IR_read();
+    enable(); lcd_wait();
+    unsigned char upper = DB_DATA & 0xF0;
+    enable(); lcd_wait();
+    
+    return upper | DB_DATA >> 4;
 }
 
 #endif
@@ -196,53 +214,18 @@ bool lcd_set_ddram_adr(unsigned char address)
 
 void lcd_busy(void)
 {
-    DB_receive(); IR_read();
-    enable();
+    lcd_read(LOW);
     while (BF);
 }
 
 unsigned char lcd_read_address(void)
 {
-    DB_receive(); IR_read();
-    enable();
-    lcd_wait();
-    
-    if (LCD_MODE == _4bit) {
-        RD2 = 1;
-        unsigned char upper = DB_DATA & 0x70;
-        enable();
-        lcd_wait();
-        return upper | DB_DATA >> 4;
-    }
-    
-    return DB_DATA & 0x7F;
+    return lcd_read(LOW) & 0x7f;
 }
 
 #define lcd_write_char(data) lcd_send(HIGH, data)
 
-#if LCD_MODE  // 8-bit
-
-unsigned char lcd_read_char(void)
-{
-    DB_receive(); DR_read();
-    enable(); lcd_wait();
-    return DB_DATA;
-}
-
-#else  // 4-bit
-
-unsigned char lcd_read_char(void)
-{
-    DB_receive(); DR_read();
-    enable(); lcd_wait();
-    unsigned char upper = DB_DATA & 0xF0;
-    // DR_read();
-    enable(); lcd_wait();
-    
-    return upper | DB_DATA >> 4;
-}
-
-#endif
+#define lcd_read_char() lcd_read(HIGH);
 
 // Instructions END
 

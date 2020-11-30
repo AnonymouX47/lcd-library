@@ -22,7 +22,7 @@ void main(void)
     TRISA = TRISB = TRISC = TRISD = TRISE = 0x00;
     PORTA = PORTB = PORTC = PORTD = PORTE = 0x00;
     
-    lcd_init(_2line, _5x10);
+    lcd_init(_2line, _5x8);
     
     char c, line = 0;
     lcd_set_cursor(line, 0);
@@ -30,7 +30,7 @@ void main(void)
     while (1) {
         c = 'a';
         for (int i = 10; i--;) {
-            lcd_write_char(c++ | 0x80);
+            lcd_write_char(c++);
             __delay_ms(500);
 //            lcd_cursor_right(1);
 //            lcd_shift_right(1);
