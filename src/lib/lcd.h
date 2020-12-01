@@ -87,7 +87,7 @@ EN = 0
 // RAM designations
 #define DDRAM 0
 #define CGRAM 1
-bool lcd_RAM;
+__bit lcd_RAM;
 
 // Cursor control
 #define FIRST_ROW 0
@@ -98,11 +98,12 @@ bool lcd_RAM;
 #define LINE1_BEGIN 0x00
 #define LINE2_BEGIN 0x40
 #define LINE2_END 0x67
-bool lcd_lines;
+__bit lcd_lines;  // Still only for 2 lines max
 
 // Other macros
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
+#define to_bit(n) ((n) ? 1 : 0)
 
 void lcd_wait(void);
 
@@ -171,45 +172,45 @@ void lcd_return_home(void)
 
 void lcd_entry_mode(bool i_d, bool s)
 {
-    lcd_send(LOW, ENTRY_MODE | i_d << 1 | s);
+    lcd_send(LOW, ENTRY_MODE | to_bit(i_d) << 1 | to_bit(s));
 }
 
 void lcd_display_set(bool d, bool c, bool b)
 {
-    lcd_send(LOW, DISPLAY_SET | d << 2 | c << 1 | b);
+    lcd_send(LOW, DISPLAY_SET | to_bit(d) << 2 | to_bit(c) << 1 | to_bit(b));
 }
 
 void lcd_cur_disp_shift(bool s_c, bool r_l)
 {
-    lcd_send(LOW, CUR_DISP_SHIFT | s_c << 3 | r_l << 2);
+    lcd_send(LOW, CUR_DISP_SHIFT | to_bit(s_c) << 3 | to_bit(r_l) << 2);
 }
 
 void lcd_function_set(bool dl, bool n, bool f)
 {
-    lcd_send(LOW, FUNCTION_SET | dl << 4 | n << 3 | f << 2);
-    lcd_lines = n;
+    lcd_send(LOW, FUNCTION_SET | to_bit(dl) << 4 | to_bit(n) << 3 | to_bit(f) << 2);
+    lcd_lines = to_bit(n);  // Still only for 2 lines max
 }
 
-bool lcd_set_cgram_adr(unsigned char address)
+__bit lcd_set_cgram_adr(unsigned char address)
 {
     if (address < 0x40) {
         lcd_RAM = CGRAM;
         lcd_send(LOW, SET_CGRAM_ADR | address);
     } else
-        return false;
+        return 0;
     
-    return true;
+    return 1;
 }
 
-bool lcd_set_ddram_adr(unsigned char address)
+__bit lcd_set_ddram_adr(unsigned char address)
 {
     if (address <= (lcd_lines == _1line ? LINE1_END1 : LINE2_END)) {
         lcd_RAM = DDRAM;
         lcd_send(LOW, SET_DDRAM_ADR | address);
     } else
-        return false;
+        return 0;
     
-    return true;
+    return 1;
 }
 
 void lcd_busy(void)
@@ -241,6 +242,8 @@ void lcd_wait(void)
 void lcd_init(bool n, bool f)
 {
     TRISD = 0x00;
+    n = to_bit(n);  // Still only for 2 lines max
+    f = to_bit(f);
 
 // The first 'function set' must be sent in 8-bit mode due to internal initialization
 // Turned out 'function set' was required twice (in 8-bit mode) to take effect.
@@ -252,7 +255,7 @@ void lcd_init(bool n, bool f)
     send_nibble((FUNCTION_SET | n << 3 | f << 2));
     send_nibble((FUNCTION_SET | n << 3 | f << 2));
 #endif
-    lcd_function_set(LCD_MODE, n, f);
+    lcd_function_set(to_bit(LCD_MODE), n, f);
     lcd_display_set(LOW, LOW, LOW);  // Display OFF
     lcd_clr_disp();  // Clear display
     lcd_entry_mode(HIGH, LOW);  // Entry mode set
@@ -261,7 +264,7 @@ void lcd_init(bool n, bool f)
 
 /* Places the cursor at the sepecified location
  * if (`row` > max_row): sets to last row */
-void lcd_set_cursor(bool row, unsigned char col)
+void lcd_set_cursor(unsigned char row, unsigned char col)
 {
     if (lcd_lines == _2line)
         lcd_set_ddram_adr((row ? LINE2_BEGIN : LINE1_BEGIN) + min(col, LINE1_END2));
@@ -272,7 +275,7 @@ void lcd_set_cursor(bool row, unsigned char col)
 /* Clears a row of display
  * row = 0: Clears first row, row = 1: Clears second row
  * if (`row` > max_row): clears last row */
-void lcd_clr_row(bool row)
+void lcd_clr_row(unsigned char row)
 {
     unsigned char i = lcd_lines ? LINE1_END2 : LINE1_END1;
     lcd_set_cursor(row, 0);
