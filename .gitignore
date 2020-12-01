@@ -2,3 +2,4 @@ mplab/
 dist/*
 !*.hex
 *.workspace
+*~
