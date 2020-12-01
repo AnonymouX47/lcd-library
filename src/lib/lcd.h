@@ -8,6 +8,7 @@
 #ifndef LCD_8_H
 #define LCD_8_H
 
+#include <stdio.h>
 #include <stdbool.h>
 
 enum {LOW, HIGH};
@@ -353,17 +354,21 @@ void lcd_shift_right(unsigned char n)
 /* Deletes `n` characters backward on display */
 void lcd_backspace(unsigned char n)
 {
-    unsigned char _n = n;
+    unsigned char i = 0;
 
     lcd_cursor_left(n);
-    while(n--) lcd_write_char(' ');
-    lcd_cursor_left(_n);
+    while(i++ < n) lcd_write_char(' ');
+    lcd_cursor_left(n);
 }
 
 /* Display null-terminated character string `s` */
-void lcd_write_str(const char *s)
+unsigned char lcd_write_str(const char *s)
 {
-    while(*s) lcd_write_char(*s++);
+    const char *p = s;
+
+    while(*p) lcd_write_char(*p++);
+
+    return p - s;
 }
 
 /* Displays an integer `n` of <= 10 digits (long int = 32bit)
@@ -371,17 +376,18 @@ void lcd_write_str(const char *s)
  * returns number of characters displayed */
 unsigned char lcd_write_int(unsigned long n)
 {
-    char s[11] = {0}, *p = s + sizeof(s) - 1;
+    char s[12] = {0}, *p = s + sizeof(s) - 1;
 
-    if ((long) n < 0) {
+    if ((long)n < 0) {
         lcd_write_char('-');
+        p--;
         n = -(long)n;
     }
 
     do *--p = '0' + n % 10;
-    while (p >= s && (n /= 10) > 1);
-
+    while (p > s && (n /= 10));
     lcd_write_str(p);
+
     return s + sizeof(s) - p - 1;
 }
 
@@ -392,17 +398,12 @@ unsigned char lcd_write_int(unsigned long n)
  * returns number of characters displayed */
 unsigned char lcd_write_float(double n, unsigned char dp)
 {
-    unsigned char l = lcd_write_int(n);
+    char s[17];
 
-    if (n > 0) n = -n;
-    n -= (int) n;
+    sprintf(s, "%.*f", dp, n);
+    sprintf(s, "%.16s", s);
 
-    if (dp) lcd_write_char('.');
-
-    while (dp-- && ++l <= 16)
-        lcd_write_char('0' + (int)(n *= 10.0) % 10);
-
-    return l;
+    return lcd_write_str(s);
 }
 
 #endif  /* LCD_8_H */

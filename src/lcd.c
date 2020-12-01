@@ -24,14 +24,19 @@ void main(void)
     
     lcd_init(_2line, _5x8);
     
-    unsigned char line = 0;
+    unsigned char line = 0, l;
     lcd_set_cursor(FIRST_ROW, 0);
     while (1) {
-        lcd_write_float(-2468894.265, 3);
+        l = lcd_write_float(5454.454, 3);
+        lcd_backspace(3);
+        lcd_write_int(l);
+        lcd_set_cursor(!line, 0);
+        lcd_clr_row(!line);
+        lcd_write_int(l);
 
         lcd_set_cursor(line = !line, 0);
-        lcd_clr_row(line);
         __delay_ms(500);
+        lcd_clr_row(line);
         // lcd_clr_disp();
         
     }
