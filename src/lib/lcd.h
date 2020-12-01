@@ -237,6 +237,7 @@ void lcd_wait(void)
     __delay_us(40);
 }
 
+/* Initializes LCD */
 void lcd_init(bool n, bool f)
 {
     TRISD = 0x00;
@@ -244,9 +245,9 @@ void lcd_init(bool n, bool f)
 // The first 'function set' must be sent in 8-bit mode due to internal initialization
 // Turned out 'function set' was required twice (in 8-bit mode) to take effect.
 
-#if LCD_MODE
+#if LCD_MODE  // 8-bit
     lcd_function_set(_8bit, n, f);
-#else
+#else  // 4-bit
     DB_send(); IR_write();
     send_nibble((FUNCTION_SET | n << 3 | f << 2));
     send_nibble((FUNCTION_SET | n << 3 | f << 2));
@@ -255,9 +256,11 @@ void lcd_init(bool n, bool f)
     lcd_display_set(LOW, LOW, LOW);  // Display OFF
     lcd_clr_disp();  // Clear display
     lcd_entry_mode(HIGH, LOW);  // Entry mode set
-    lcd_display_set(1, 1, 1);  // Display ON, Cursor ON, Blinking ON
+    lcd_display_set(HIGH, HIGH, HIGH);  // Display ON, Cursor ON, Blinking ON
 }
 
+/* Places the cursor at the sepecified location
+ * if (`row` > max_row): sets to last row */
 void lcd_set_cursor(bool row, unsigned char col)
 {
     if (lcd_lines == _2line)
@@ -266,6 +269,9 @@ void lcd_set_cursor(bool row, unsigned char col)
         lcd_set_ddram_adr(LINE1_BEGIN + min(col, LINE1_END1));
 }
 
+/* Clears a row of display
+ * row = 0: Clears first row, row = 1: Clears second row
+ * if (`row` > max_row): clears last row */
 void lcd_clr_row(bool row)
 {
     unsigned char i = lcd_lines ? LINE1_END2 : LINE1_END1;
@@ -280,25 +286,78 @@ void lcd_clr_row(bool row)
 #define LEFT 0
 #define RIGHT 1
 
-/* move the cursor left n times */
+/* Moves the cursor `n` times to the left */
 void lcd_cursor_left(unsigned char n)
 {
     while(n--) lcd_cur_disp_shift(CURSOR, LEFT);
 }
 
+/* Moves the cursor `n` times to the right */
 void lcd_cursor_right(unsigned char n)
 {
     while(n--) lcd_cur_disp_shift(CURSOR, RIGHT);
 }
 
+/* Shifts the display `n` times to the left */
 void lcd_shift_left(unsigned char n)
 {
     while(n--) lcd_cur_disp_shift(DISPLAY, LEFT);
 }
 
+/* Shifts the display `n` times to the right */
 void lcd_shift_right(unsigned char n)
 {
     while(n--) lcd_cur_disp_shift(DISPLAY, RIGHT);
+}
+
+/* Deletes `n` characters backward on display */
+void lcd_backspace(unsigned char n)
+{
+    unsigned char _n = n;
+
+    lcd_cursor_left(n);
+    while(n--) lcd_write_char(' ');
+    lcd_cursor_left(_n);
+}
+
+/* Display null-terminated character string `s` */
+void lcd_write_str(const char *s)
+{
+    while(*s) lcd_write_char(*s++);
+}
+
+/* Displays an integer `n` of <= 10 digits (long int = 32bit)
+ *
+ * returns number of characters displayed */
+unsigned char lcd_write_int(long n)
+{
+    char s[11] = {0}, *p = s + sizeof(s) - 1;
+
+    if (n < 0) lcd_write_char('-');
+
+    do *--p = '0' + n % 10;
+    while (p >= s && (n /= 10) > 1);
+
+    lcd_write_str(p);
+    return s + sizeof(s) - p - 1;
+}
+
+
+/* Displays a floating-point number `n` with `dp` decimal places
+ * and <= 16 digits all together (not including '-' or '.')
+ *
+ * returns number of characters displayed */
+unsigned char lcd_write_float(double n, unsigned char dp)
+{
+    unsigned char l = lcd_write_int(n);
+
+    n -= (int) n;
+    if (dp) lcd_write_char('.');
+
+    while (dp-- && ++l <= 16)
+        lcd_write_char('0' + (int)(n *= 10.0) % 10);
+
+    return l;
 }
 
 #endif  /* LCD_8_H */
