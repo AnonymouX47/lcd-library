@@ -105,6 +105,8 @@ __bit lcd_lines;  // Still only for 2 lines max
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define to_bit(n) ((n) ? 1 : 0)
 
+unsigned char lcd_cursor_pos, lcd_shift_pos;
+__bit lcd_curr_row;  // Still only for 2 lines max
 void lcd_wait(void);
 
 // Data Bus Functions START
@@ -224,9 +226,23 @@ unsigned char lcd_read_address(void)
     return lcd_read(LOW) & 0x7f;
 }
 
-#define lcd_write_char(data) lcd_send(HIGH, data)
+void lcd_write_char(char data)
+{
+    if (lcd_cursor_pos == (lcd_lines ? (lcd_curr_row ? LINE2_END : LINE1_END2) : LINE1_END1))
+        lcd_cursor_pos = 0;
+    else lcd_cursor_pos += 1;
 
-#define lcd_read_char() lcd_read(HIGH);
+    lcd_send(HIGH, data);
+}
+
+unsigned char lcd_read_char(void)
+{
+    if (lcd_cursor_pos == (lcd_lines ? (lcd_curr_row ? LINE2_END : LINE1_END2) : LINE1_END1))
+        lcd_cursor_pos = 0;
+    else lcd_cursor_pos += 1;
+
+    return lcd_read(HIGH);
+}
 
 // Instructions END
 
@@ -262,26 +278,6 @@ void lcd_init(bool n, bool f)
     lcd_display_set(HIGH, HIGH, HIGH);  // Display ON, Cursor ON, Blinking ON
 }
 
-/* Places the cursor at the sepecified location
- * if (`row` > max_row): sets to last row */
-void lcd_set_cursor(unsigned char row, unsigned char col)
-{
-    if (lcd_lines == _2line)
-        lcd_set_ddram_adr((row ? LINE2_BEGIN : LINE1_BEGIN) + min(col, LINE1_END2));
-    else
-        lcd_set_ddram_adr(LINE1_BEGIN + min(col, LINE1_END1));
-}
-
-/* Clears a row of display
- * row = 0: Clears first row, row = 1: Clears second row
- * if (`row` > max_row): clears last row */
-void lcd_clr_row(unsigned char row)
-{
-    unsigned char i = lcd_lines ? LINE1_END2 : LINE1_END1;
-    lcd_set_cursor(row, 0);
-    while (i--) lcd_write_char(' ');
-    lcd_set_cursor(row, 0);
-}
 
 // For cursor movement and display shifts
 #define CURSOR 0
@@ -289,27 +285,68 @@ void lcd_clr_row(unsigned char row)
 #define LEFT 0
 #define RIGHT 1
 
+/* Places the cursor at the sepecified location
+ * if (`row` > max_row): sets to last row */
+void lcd_set_cursor(bool row, unsigned char col)
+{
+    lcd_curr_row = lcd_lines ? to_bit(row) : 0;
+    if (lcd_cursor_pos == (lcd_lines ? (lcd_curr_row ? LINE2_END : LINE1_END2) : LINE1_END1))
+        lcd_cursor_pos = 0;
+    else lcd_cursor_pos = min(col, lcd_lines ? LINE1_END2 : LINE1_END1);
+
+    if (lcd_lines == _2line)
+        lcd_set_ddram_adr((row ? LINE2_BEGIN : LINE1_BEGIN) + min(col, LINE1_END2));
+    else
+        lcd_set_ddram_adr(LINE1_BEGIN + min(col, LINE1_END1));
+}
+
+/* Clears a row of display with the cursor remaining at it's position
+ * row = 0: Clears first row, row = 1: Clears second row
+ * if (`row` > max_row): clears last row */
+void lcd_clr_row(unsigned char row)
+{
+    bool prev_row = lcd_curr_row, prev_col = lcd_cursor_pos;
+    unsigned char i = lcd_lines ? LINE1_END2 : LINE1_END1;
+
+    lcd_set_cursor(row, 0);
+    while (i--) lcd_write_char(' ');
+
+    lcd_curr_row = prev_row, lcd_cursor_pos = prev_col;
+    lcd_set_cursor(lcd_curr_row, lcd_cursor_pos);
+}
+
+/* Clears current row */
+void lcd_clr_curr_row(void)
+{
+    lcd_clr_row(lcd_curr_row);
+    lcd_set_cursor(lcd_curr_row, 0);
+}
+
 /* Moves the cursor `n` times to the left */
 void lcd_cursor_left(unsigned char n)
 {
+    lcd_cursor_pos -= n;
     while(n--) lcd_cur_disp_shift(CURSOR, LEFT);
 }
 
 /* Moves the cursor `n` times to the right */
 void lcd_cursor_right(unsigned char n)
 {
+    lcd_cursor_pos += n;
     while(n--) lcd_cur_disp_shift(CURSOR, RIGHT);
 }
 
 /* Shifts the display `n` times to the left */
 void lcd_shift_left(unsigned char n)
 {
+    lcd_shift_pos -= n;
     while(n--) lcd_cur_disp_shift(DISPLAY, LEFT);
 }
 
 /* Shifts the display `n` times to the right */
 void lcd_shift_right(unsigned char n)
 {
+    lcd_shift_pos += n;
     while(n--) lcd_cur_disp_shift(DISPLAY, RIGHT);
 }
 
@@ -332,11 +369,14 @@ void lcd_write_str(const char *s)
 /* Displays an integer `n` of <= 10 digits (long int = 32bit)
  *
  * returns number of characters displayed */
-unsigned char lcd_write_int(long n)
+unsigned char lcd_write_int(unsigned long n)
 {
     char s[11] = {0}, *p = s + sizeof(s) - 1;
 
-    if (n < 0) lcd_write_char('-');
+    if ((long) n < 0) {
+        lcd_write_char('-');
+        n = -(long)n;
+    }
 
     do *--p = '0' + n % 10;
     while (p >= s && (n /= 10) > 1);
@@ -354,7 +394,9 @@ unsigned char lcd_write_float(double n, unsigned char dp)
 {
     unsigned char l = lcd_write_int(n);
 
+    if (n > 0) n = -n;
     n -= (int) n;
+
     if (dp) lcd_write_char('.');
 
     while (dp-- && ++l <= 16)

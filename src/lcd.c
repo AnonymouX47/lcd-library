@@ -24,23 +24,14 @@ void main(void)
     
     lcd_init(_2line, _5x8);
     
-    char c = 'a';
-    unsigned char line=0, col;
-    lcd_set_cursor(line, 0);
+    unsigned char line = 0;
+    lcd_set_cursor(FIRST_ROW, 0);
     while (1) {
-        c = (c == 'z' || c == 'a') ? 'a' : c + 1;
-        col = 0;
-        for (int i = 13; i--;) lcd_write_char(c++);
-        for (int i = 13; i--;) {
-            lcd_set_cursor(FIRST_ROW, col);
-            c = lcd_read_char();
-            lcd_set_cursor(SECOND_ROW, col++);
-            lcd_write_char(c);
-            __delay_ms(500);
-        }
+        lcd_write_float(-2468894.265, 3);
 
-        // lcd_set_cursor(line = !line, 0);
-        lcd_clr_row(SECOND_ROW);
+        lcd_set_cursor(line = !line, 0);
+        lcd_clr_row(line);
+        __delay_ms(500);
         // lcd_clr_disp();
         
     }
