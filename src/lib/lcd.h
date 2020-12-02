@@ -335,22 +335,16 @@ void lcd_clr_row(unsigned char row)
                   i = right_edge + 1;
 
     lcd_set_cursor(row, 0);
-    while (i--) lcd_write_char(' ');
+    while (i--) lcd_send(HIGH, ' ');
 
-    lcd_shift_left(lcd_shift_pos - prev_shift);
     lcd_set_cursor(prev_row, prev_col);
 }
 
 /* Clears current row */
 void lcd_clr_curr_row(void)
 {
-    unsigned char i = right_edge + 1;
-
+    lcd_clr_row(lcd_cursor_row);
     lcd_set_cursor(lcd_cursor_row, 0);
-    while (i--) lcd_write_char(' ');
-
-    lcd_set_cursor(lcd_cursor_row, 0);
-    // lcd_shift_right(lcd_shift_pos);
 }
 
 /* Moves the cursor `n` times to the left */
@@ -410,12 +404,17 @@ void lcd_backspace(signed char n)
 {
     unsigned char edge = entry_mode_i_d ? left_edge : right_edge;
 
+    // Move over to previous character
+    if (entry_mode_i_d) lcd_cursor_left(1);
+    else lcd_cursor_right(1);
+
     lcd_entry_mode(!entry_mode_i_d, LOW);  // Reverse cursor direction
 
     while(n-- > 0 && lcd_cursor_col != edge) lcd_write_char(' ');
-    lcd_write_char(' ');
 
     lcd_entry_mode(!entry_mode_i_d, LOW);  // Restore cursor direction
+
+    // Move cursor to next position
     if (entry_mode_i_d) lcd_cursor_right(1);
     else lcd_cursor_left(1);
 }
