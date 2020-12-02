@@ -38,6 +38,14 @@ void main(void)
             c--, lcd_backspace(1);
         else if (RC2)
             c = 'a', lcd_clr_curr_row();
+        else if (RC3)
+            lcd_cursor_left(1);
+        else if (RC4)
+            lcd_cursor_right(1);
+        else if (RC5)
+            lcd_shift_left(1);
+        else if (RC6)
+            lcd_shift_right(1);
 
         while(PORTC);
 
