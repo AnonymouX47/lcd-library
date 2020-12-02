@@ -20,23 +20,32 @@
 void main(void)
 {
     TRISA = TRISB = TRISC = TRISD = TRISE = 0x00;
+    TRISC = 0xFF;
     PORTA = PORTB = PORTC = PORTD = PORTE = 0x00;
     
     lcd_init(_2line, _5x8);
-    
-    unsigned char line = 0, l;
+
+    char c = 'a';
+    unsigned char line = 0;
     lcd_set_cursor(FIRST_ROW, 0);
     while (1) {
-        l = lcd_write_float(5454.454, 3);
-        lcd_backspace(3);
-        lcd_write_int(l);
-        lcd_set_cursor(!line, 0);
-        lcd_clr_row(!line);
-        lcd_write_int(l);
+        while (!PORTC);
+        if (RC0) {
+            c = (c >= 'a' && c <= 'z') ? c : 'a';
+            lcd_write_char(c++);
+        }
+        else if (RC1)
+            c--, lcd_backspace(1);
+        else if (RC2)
+            c = 'a', lcd_clr_curr_row();
 
-        lcd_set_cursor(line = !line, 0);
-        __delay_ms(500);
-        lcd_clr_row(line);
+        while(PORTC);
+
+        // lcd_backspace(3);
+        // lcd_write_int(l);
+
+        // __delay_ms(500);
+        // __delay_ms(500);
         // lcd_clr_disp();
         
     }

@@ -106,8 +106,11 @@ __bit lcd_lines;  // Still only for 2 lines max
 #define max(a, b) ((a) > (b) ? (a) : (b))
 #define to_bit(n) ((n) ? 1 : 0)
 
-unsigned char lcd_cursor_pos, lcd_shift_pos;
-__bit lcd_curr_row;  // Still only for 2 lines max
+signed char lcd_cursor_col, lcd_shift_pos;
+unsigned char left_edge, right_edge;
+__bit entry_mode_i_d, entry_mode_s,
+      lcd_cursor_row;  // Still only for 2 lines max
+
 void lcd_wait(void);
 
 // Data Bus Functions START
@@ -165,16 +168,21 @@ void lcd_clr_disp(void)
 {
     lcd_send(LOW, CLR_DISP);
     __delay_ms(2);
+
+    lcd_cursor_row = lcd_cursor_col = lcd_shift_pos = 0;
 }
 
 void lcd_return_home(void)
 {
     lcd_send(LOW, RETURN_HOME);
     __delay_ms(2);
+
+    lcd_cursor_row = lcd_cursor_col = lcd_shift_pos = 0;
 }
 
 void lcd_entry_mode(bool i_d, bool s)
 {
+    entry_mode_i_d = i_d, entry_mode_s = s;
     lcd_send(LOW, ENTRY_MODE | to_bit(i_d) << 1 | to_bit(s));
 }
 
@@ -227,20 +235,28 @@ unsigned char lcd_read_address(void)
     return lcd_read(LOW) & 0x7f;
 }
 
+void lcd_shift_left(signed char);
+void lcd_shift_right(signed char);
+
 void lcd_write_char(char data)
 {
-    if (lcd_cursor_pos == (lcd_lines ? (lcd_curr_row ? LINE2_END : LINE1_END2) : LINE1_END1))
-        lcd_cursor_pos = 0;
-    else lcd_cursor_pos += 1;
+    if (lcd_cursor_col == (entry_mode_i_d ? right_edge-1 : left_edge+1))
+        return;
 
     lcd_send(HIGH, data);
+
+    if (entry_mode_i_d && lcd_cursor_col == lcd_shift_pos + 15)
+        lcd_shift_left(1);
+    else if (!entry_mode_i_d && lcd_cursor_col == lcd_shift_pos)
+        lcd_shift_right(1);
+
+    lcd_cursor_col += entry_mode_i_d ? 1 : -1;
+    if (entry_mode_s) lcd_shift_pos += entry_mode_i_d ? 1 : -1;
 }
 
 unsigned char lcd_read_char(void)
 {
-    if (lcd_cursor_pos == (lcd_lines ? (lcd_curr_row ? LINE2_END : LINE1_END2) : LINE1_END1))
-        lcd_cursor_pos = 0;
-    else lcd_cursor_pos += 1;
+    lcd_cursor_col += entry_mode_i_d ? 1 : -1;
 
     return lcd_read(HIGH);
 }
@@ -277,6 +293,9 @@ void lcd_init(bool n, bool f)
     lcd_clr_disp();  // Clear display
     lcd_entry_mode(HIGH, LOW);  // Entry mode set
     lcd_display_set(HIGH, HIGH, HIGH);  // Display ON, Cursor ON, Blinking ON
+
+    left_edge = 0;
+    right_edge = lcd_lines ? LINE1_END2 : LINE1_END1;
 }
 
 
@@ -290,10 +309,13 @@ void lcd_init(bool n, bool f)
  * if (`row` > max_row): sets to last row */
 void lcd_set_cursor(bool row, unsigned char col)
 {
-    lcd_curr_row = lcd_lines ? to_bit(row) : 0;
-    if (lcd_cursor_pos == (lcd_lines ? (lcd_curr_row ? LINE2_END : LINE1_END2) : LINE1_END1))
-        lcd_cursor_pos = 0;
-    else lcd_cursor_pos = min(col, lcd_lines ? LINE1_END2 : LINE1_END1);
+    lcd_cursor_row = lcd_lines ? to_bit(row) : 0;  // Still only for 2 lines max
+    lcd_cursor_col = min(col, right_edge);
+    
+    if (lcd_cursor_col < lcd_shift_pos)
+        lcd_shift_left(lcd_shift_pos - lcd_cursor_col);
+    else if (lcd_cursor_col > lcd_shift_pos + 15)
+        lcd_shift_right(lcd_cursor_col - lcd_shift_pos);
 
     if (lcd_lines == _2line)
         lcd_set_ddram_adr((row ? LINE2_BEGIN : LINE1_BEGIN) + min(col, LINE1_END2));
@@ -306,62 +328,97 @@ void lcd_set_cursor(bool row, unsigned char col)
  * if (`row` > max_row): clears last row */
 void lcd_clr_row(unsigned char row)
 {
-    bool prev_row = lcd_curr_row, prev_col = lcd_cursor_pos;
-    unsigned char i = lcd_lines ? LINE1_END2 : LINE1_END1;
+    unsigned char prev_row = lcd_cursor_row, prev_col = lcd_cursor_col,
+                  prev_shift = lcd_shift_pos,
+                  i = right_edge + 1;
 
     lcd_set_cursor(row, 0);
     while (i--) lcd_write_char(' ');
 
-    lcd_curr_row = prev_row, lcd_cursor_pos = prev_col;
-    lcd_set_cursor(lcd_curr_row, lcd_cursor_pos);
+    lcd_shift_left(lcd_shift_pos - prev_shift);
+    lcd_set_cursor(prev_row, prev_col);
 }
 
 /* Clears current row */
 void lcd_clr_curr_row(void)
 {
-    lcd_clr_row(lcd_curr_row);
-    lcd_set_cursor(lcd_curr_row, 0);
+    unsigned char i = right_edge + 1;
+
+    lcd_set_cursor(lcd_cursor_row, 0);
+    while (i--) lcd_write_char(' ');
+
+    lcd_set_cursor(lcd_cursor_row, 0);
+    // lcd_shift_right(lcd_shift_pos);
 }
 
 /* Moves the cursor `n` times to the left */
-void lcd_cursor_left(unsigned char n)
+void lcd_cursor_left(signed char n)
 {
-    lcd_cursor_pos -= n;
-    while(n--) lcd_cur_disp_shift(CURSOR, LEFT);
+    while(n-- > 0 && lcd_cursor_col-- > left_edge) {
+        lcd_cur_disp_shift(CURSOR, LEFT);
+        if (lcd_cursor_col < lcd_shift_pos + 1)
+            // Reached one column to the left edge
+            while(n--) {
+                lcd_cur_disp_shift(CURSOR, LEFT);
+                lcd_shift_right(1);
+            }
+    }
+
+    if (lcd_cursor_col < left_edge) lcd_cursor_col = left_edge;
 }
 
 /* Moves the cursor `n` times to the right */
-void lcd_cursor_right(unsigned char n)
+void lcd_cursor_right(signed char n)
 {
-    lcd_cursor_pos += n;
-    while(n--) lcd_cur_disp_shift(CURSOR, RIGHT);
+    while(n-- > 0 && lcd_cursor_col++ < right_edge) {
+        lcd_cur_disp_shift(CURSOR, RIGHT);
+        if (lcd_cursor_col == lcd_shift_pos + 14)
+            // Reached one column to the right edge
+            while(n--) {
+                lcd_cur_disp_shift(CURSOR, RIGHT);
+                lcd_shift_left(1);
+            }
+    }
+
+    if (lcd_cursor_col > right_edge) lcd_cursor_col = right_edge;
 }
 
 /* Shifts the display `n` times to the left */
-void lcd_shift_left(unsigned char n)
+void lcd_shift_left(signed char n)
 {
-    lcd_shift_pos -= n;
-    while(n--) lcd_cur_disp_shift(DISPLAY, LEFT);
+    unsigned char edge = right_edge - 15;
+
+    while(n-- > 0 && lcd_shift_pos++ < edge) lcd_cur_disp_shift(DISPLAY, LEFT);
+    
+    if (lcd_shift_pos > right_edge) lcd_shift_pos = right_edge;
 }
 
 /* Shifts the display `n` times to the right */
-void lcd_shift_right(unsigned char n)
+void lcd_shift_right(signed char n)
 {
-    lcd_shift_pos += n;
-    while(n--) lcd_cur_disp_shift(DISPLAY, RIGHT);
+    const unsigned char left_edge = 0;
+
+    while(n-- > 0 && lcd_shift_pos-- > left_edge) lcd_cur_disp_shift(DISPLAY, RIGHT);
+
+    if (lcd_shift_pos < left_edge) lcd_shift_pos = left_edge;
 }
 
 /* Deletes `n` characters backward on display */
-void lcd_backspace(unsigned char n)
+void lcd_backspace(signed char n)
 {
-    unsigned char i = 0;
+    unsigned char edge = entry_mode_i_d ? left_edge : right_edge;
 
-    lcd_cursor_left(n);
-    while(i++ < n) lcd_write_char(' ');
-    lcd_cursor_left(n);
+    lcd_entry_mode(!entry_mode_i_d, LOW);  // Reverse cursor direction
+
+    while(n-- > 0 && lcd_cursor_col != edge) lcd_write_char(' ');
+    lcd_write_char(' ');
+
+    lcd_entry_mode(!entry_mode_i_d, LOW);  // Restore cursor direction
+    if (entry_mode_i_d) lcd_cursor_right(1);
+    else lcd_cursor_left(1);
 }
 
-/* Display null-terminated character string `s` */
+/* Displays null-terminated character string `s` */
 unsigned char lcd_write_str(const char *s)
 {
     const char *p = s;
