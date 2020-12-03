@@ -310,10 +310,10 @@ void lcd_init(bool n, bool f)
 
 /* Places the cursor at the sepecified location
  * if (`row` > max_row): sets to last row */
-void lcd_set_cursor(bool row, unsigned char col)
+void lcd_set_cursor(bool row, signed char col)
 {
     lcd_cursor_row = lcd_lines ? to_bit(row) : 0;  // Still only for 2 lines max
-    lcd_cursor_col = min(col, right_edge);
+    lcd_cursor_col = min(max(col, 0), right_edge);
     
     if (lcd_cursor_col < lcd_shift_pos)
         lcd_shift_right(lcd_shift_pos - lcd_cursor_col);
@@ -323,7 +323,10 @@ void lcd_set_cursor(bool row, unsigned char col)
     lcd_set_ddram_adr((to_bit(row) ? LINE2_BEGIN : LINE1_BEGIN) + min(col, right_edge));
 }
 
+/* Jump to start of current line */
 #define lcd_goto_begin() lcd_set_cursor(lcd_cursor_row, left_edge)
+
+/* Jump to end of current line */
 #define lcd_goto_end() lcd_set_cursor(lcd_cursor_row, right_edge)
 
 /* Clears a row of display with the cursor position and display shift unaffected
@@ -421,9 +424,9 @@ void lcd_backspace(signed char n)
 }
 
 /* Displays null-terminated character string `s` */
-unsigned char lcd_write_str(const char *s)
+unsigned char lcd_write_str(const char * const restrict s)
 {
-    const char *p = s;
+    const char * restrict p = s;
 
     while(*p) lcd_write_char(*p++);
 
@@ -463,6 +466,33 @@ unsigned char lcd_write_float(double n, unsigned char dp)
     sprintf(s, "%.16s", s);
 
     return lcd_write_str(s);
+}
+
+/* Scroll display forth and back `n` times
+ * showing only charater positions from `start` to `end`
+ * at a speed of one shift per (`speed`*50)ms and 1s delay at both ends of scrolling */
+void lcd_scroll_anim
+(unsigned char n, signed char start, signed char end, const unsigned char speed)
+{
+    if (start > end) return;
+    start = max(left_edge, start), end = min(end, right_edge);
+
+    unsigned char i = max(end - start, 15) - 15, j, k;
+
+    lcd_set_cursor(lcd_cursor_row, start);
+    while (n--) {
+        __delay_ms(500);
+        for (j = i; j--;) {
+            lcd_shift_left(1);
+            for (k = speed; k--;) __delay_ms(50);
+        }
+        __delay_ms(500);
+        for (j = i; j--;) {
+            lcd_shift_right(1);
+            for (k = speed; k--;) __delay_ms(50);
+        }
+    }
+    __delay_ms(500);
 }
 
 #endif  /* LCD_8_H */
