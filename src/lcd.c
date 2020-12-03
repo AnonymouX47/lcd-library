@@ -54,13 +54,11 @@ void main(void)
 
         while(PORTC);
 
-        /*
         curr_col = lcd_cursor_col;
         lcd_set_cursor(!lcd_cursor_row, lcd_shift_pos);
         lcd_clr_row(SECOND_ROW);
         lcd_write_int(curr_col), lcd_cursor_right(1), lcd_write_int(lcd_shift_pos);
         lcd_set_cursor(!lcd_cursor_row, curr_col);
-         */
 
         // lcd_backspace(3);
         // lcd_write_int(l);
