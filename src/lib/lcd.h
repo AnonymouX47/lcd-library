@@ -312,15 +312,17 @@ void lcd_init(bool n, bool f)
  * if (`row` > max_row): sets to last row */
 void lcd_set_cursor(bool row, signed char col)
 {
+    lcd_set_ddram_adr((to_bit(row) ? LINE2_BEGIN : LINE1_BEGIN) \
+                        + min(col, right_edge + entry_mode_i_d));
+
     lcd_cursor_row = lcd_lines ? to_bit(row) : 0;  // Still only for 2 lines max
-    lcd_cursor_col = min(max(col, 0), right_edge);
+    lcd_cursor_col = min( max(col, left_edge - !entry_mode_i_d), \
+                        right_edge + entry_mode_i_d );
     
     if (lcd_cursor_col < lcd_shift_pos)
         lcd_shift_right(lcd_shift_pos - lcd_cursor_col);
     else if (lcd_cursor_col > lcd_shift_pos + 15)
         lcd_shift_left(lcd_cursor_col - lcd_shift_pos);
-
-    lcd_set_ddram_adr((to_bit(row) ? LINE2_BEGIN : LINE1_BEGIN) + min(col, right_edge));
 }
 
 /* Jump to start of current line */
