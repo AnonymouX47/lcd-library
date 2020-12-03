@@ -27,7 +27,10 @@ void main(void)
 
     char c = 'a';
     unsigned char line = 0;
+    signed curr_col;
+
     lcd_set_cursor(FIRST_ROW, 0);
+    lcd_write_str("This is not cool!!!\n");
     while (1) {
         while (!PORTC);
         if (RC0) {
@@ -46,8 +49,18 @@ void main(void)
             lcd_shift_left(1);
         else if (RC6)
             lcd_shift_right(1);
+        else if (RC7)
+            lcd_scroll_anim(3, 0, 20, 4);
 
         while(PORTC);
+
+        /*
+        curr_col = lcd_cursor_col;
+        lcd_set_cursor(!lcd_cursor_row, lcd_shift_pos);
+        lcd_clr_row(SECOND_ROW);
+        lcd_write_int(curr_col), lcd_cursor_right(1), lcd_write_int(lcd_shift_pos);
+        lcd_set_cursor(!lcd_cursor_row, curr_col);
+         */
 
         // lcd_backspace(3);
         // lcd_write_int(l);
