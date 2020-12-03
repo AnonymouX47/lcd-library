@@ -315,32 +315,29 @@ void lcd_set_cursor(bool row, unsigned char col)
     lcd_cursor_col = min(col, right_edge);
     
     if (lcd_cursor_col < lcd_shift_pos)
-        lcd_shift_left(lcd_shift_pos - lcd_cursor_col);
+        lcd_shift_right(lcd_shift_pos - lcd_cursor_col);
     else if (lcd_cursor_col > lcd_shift_pos + 15)
-        lcd_shift_right(lcd_cursor_col - lcd_shift_pos);
+        lcd_shift_left(lcd_cursor_col - lcd_shift_pos);
 
-    if (lcd_lines == _2line)
-        lcd_set_ddram_adr((row ? LINE2_BEGIN : LINE1_BEGIN) + min(col, LINE1_END2));
-    else
-        lcd_set_ddram_adr(LINE1_BEGIN + min(col, LINE1_END1));
+    lcd_set_ddram_adr((to_bit(row) ? LINE2_BEGIN : LINE1_BEGIN) + min(col, right_edge));
 }
 
-/* Clears a row of display with the cursor remaining at it's position
+/* Clears a row of display with the cursor position and display shift unaffected
  * row = 0: Clears first row, row = 1: Clears second row
  * if (`row` > max_row): clears last row */
 void lcd_clr_row(unsigned char row)
 {
     unsigned char prev_row = lcd_cursor_row, prev_col = lcd_cursor_col,
-                  prev_shift = lcd_shift_pos,
                   i = right_edge + 1;
 
-    lcd_set_cursor(row, 0);
+    lcd_set_ddram_adr(to_bit(row) ? LINE2_BEGIN : LINE1_BEGIN);
     while (i--) lcd_send(HIGH, ' ');
 
     lcd_set_cursor(prev_row, prev_col);
 }
 
-/* Clears current row */
+/* Clears current row and resets cursor position and display shift
+ * to the begining of the line */
 void lcd_clr_curr_row(void)
 {
     lcd_clr_row(lcd_cursor_row);
@@ -354,6 +351,7 @@ void lcd_cursor_left(signed char n)
         lcd_cur_disp_shift(CURSOR, LEFT);
         if (lcd_cursor_col < lcd_shift_pos + 1)
             // Reached one column to the left edge
+            lcd_shift_right(1);
             while(n--) {
                 lcd_cur_disp_shift(CURSOR, LEFT);
                 lcd_shift_right(1);
@@ -370,6 +368,7 @@ void lcd_cursor_right(signed char n)
         lcd_cur_disp_shift(CURSOR, RIGHT);
         if (lcd_cursor_col == lcd_shift_pos + 14)
             // Reached one column to the right edge
+            lcd_shift_left(1);
             while(n--) {
                 lcd_cur_disp_shift(CURSOR, RIGHT);
                 lcd_shift_left(1);
@@ -382,19 +381,17 @@ void lcd_cursor_right(signed char n)
 /* Shifts the display `n` times to the left */
 void lcd_shift_left(signed char n)
 {
-    unsigned char edge = right_edge - 15;
+    signed char edge = right_edge - 15;
 
-    while(n-- > 0 && lcd_shift_pos++ < edge) lcd_cur_disp_shift(DISPLAY, LEFT);
+    while(n-- && lcd_shift_pos++ < edge) lcd_cur_disp_shift(DISPLAY, LEFT);
     
-    if (lcd_shift_pos > right_edge) lcd_shift_pos = right_edge;
+    if (lcd_shift_pos > edge) lcd_shift_pos = edge;
 }
 
 /* Shifts the display `n` times to the right */
 void lcd_shift_right(signed char n)
 {
-    const unsigned char left_edge = 0;
-
-    while(n-- > 0 && lcd_shift_pos-- > left_edge) lcd_cur_disp_shift(DISPLAY, RIGHT);
+    while(n-- && lcd_shift_pos-- > left_edge) lcd_cur_disp_shift(DISPLAY, RIGHT);
 
     if (lcd_shift_pos < left_edge) lcd_shift_pos = left_edge;
 }
@@ -410,7 +407,7 @@ void lcd_backspace(signed char n)
 
     lcd_entry_mode(!entry_mode_i_d, LOW);  // Reverse cursor direction
 
-    while(n-- > 0 && lcd_cursor_col != edge) lcd_write_char(' ');
+    while(n-- && lcd_cursor_col != edge) lcd_write_char(' ');
 
     lcd_entry_mode(!entry_mode_i_d, LOW);  // Restore cursor direction
 
