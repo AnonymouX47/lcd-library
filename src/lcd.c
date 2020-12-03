@@ -14,7 +14,7 @@
 #include <xc.h>
 #define _XTAL_FREQ 20000000
 
-#define LCD_MODE 1
+#define LCD_MODE 0
 #include "lib/lcd.h"
 
 void main(void)
@@ -30,42 +30,19 @@ void main(void)
     signed curr_col;
 
     lcd_set_cursor(FIRST_ROW, 0);
-    lcd_write_str("This is not cool!!!\n");
     while (1) {
-        while (!PORTC);
-        if (RC0) {
+        while (lcd_cursor_col < right_edge+1) {
             c = (c >= 'a' && c <= 'z') ? c : 'a';
             lcd_write_char(c++);
+            lcd_cursor_down();
+            __delay_ms(300);
+            lcd_write_char(c++);
+            lcd_cursor_up();
+            __delay_ms(300);
         }
-        else if (RC1)
-            c--, lcd_backspace(1);
-        else if (RC2)
-            c = 'a', lcd_clr_curr_row();
-        else if (RC3)
-            lcd_cursor_left(1);
-        else if (RC4)
-            lcd_cursor_right(1);
-        else if (RC5)
-            lcd_shift_left(1);
-        else if (RC6)
-            lcd_shift_right(1);
-        else if (RC7)
-            lcd_scroll_anim(3, 0, 20, 4);
 
-        while(PORTC);
-
-        curr_col = lcd_cursor_col;
-        lcd_set_cursor(!lcd_cursor_row, lcd_shift_pos);
-        lcd_clr_row(SECOND_ROW);
-        lcd_write_int(curr_col), lcd_cursor_right(1), lcd_write_int(lcd_shift_pos);
-        lcd_set_cursor(!lcd_cursor_row, curr_col);
-
-        // lcd_backspace(3);
-        // lcd_write_int(l);
-
-        // __delay_ms(500);
-        // __delay_ms(500);
-        // lcd_clr_disp();
-        
+        lcd_scroll_anim(1, left_edge, right_edge, 4);
+        lcd_clr_disp();
+        c = 'a';
     }
 }
