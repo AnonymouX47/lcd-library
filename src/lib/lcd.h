@@ -326,10 +326,16 @@ void lcd_set_cursor(bool row, signed char col)
 }
 
 /* Jump to start of current line */
-#define lcd_goto_begin() lcd_set_cursor(lcd_cursor_row, left_edge)
+void lcd_goto_begin(void)
+{
+    lcd_set_cursor(lcd_cursor_row, left_edge);
+}
 
 /* Jump to end of current line */
-#define lcd_goto_end() lcd_set_cursor(lcd_cursor_row, right_edge)
+void lcd_goto_end(void)
+{
+    lcd_set_cursor(lcd_cursor_row, right_edge);
+}
 
 /* Clears a row of display with the cursor position and display shift unaffected
  * row = 0: Clears first row, row = 1: Clears second row
@@ -351,6 +357,20 @@ void lcd_clr_curr_row(void)
 {
     lcd_clr_row(lcd_cursor_row);
     lcd_set_cursor(lcd_cursor_row, 0);
+}
+
+/* Moves the cursor up once (if possible) and retains cursor column */
+void lcd_cursor_up(void)
+{
+    if (lcd_cursor_row)
+        lcd_set_cursor(lcd_cursor_row-1, lcd_cursor_col);
+}
+
+/* Moves the cursor down once (if possible) and retains cursor column */
+void lcd_cursor_down(void)
+{
+    if (lcd_cursor_row < lcd_lines)
+        lcd_set_cursor(lcd_cursor_row+1, lcd_cursor_col);
 }
 
 /* Moves the cursor `n` times to the left */
