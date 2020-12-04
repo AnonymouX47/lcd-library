@@ -215,7 +215,7 @@ __bit lcd_set_cgram_adr(unsigned char address)
 
 __bit lcd_set_ddram_adr(unsigned char address)
 {
-    if (address <= right_edge) {
+    if (address <= (lcd_lines == _1line ? LINE1_END1 : LINE2_END) + entry_mode_i_d) {
         lcd_RAM = DDRAM;
         lcd_send(LOW, SET_DDRAM_ADR | address);
     } else
