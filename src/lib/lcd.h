@@ -215,7 +215,7 @@ __bit lcd_set_cgram_adr(unsigned char address)
 
 __bit lcd_set_ddram_adr(unsigned char address)
 {
-    if (address <= (lcd_lines == _1line ? LINE1_END1 : LINE2_END)) {
+    if (address <= right_edge) {
         lcd_RAM = DDRAM;
         lcd_send(LOW, SET_DDRAM_ADR | address);
     } else
@@ -240,10 +240,8 @@ void lcd_shift_right(signed char);
 
 void lcd_write_char(char data)
 {
-    if (lcd_cursor_col == (entry_mode_i_d ? right_edge+1 : left_edge-1)) {
-        RD0 = 1;
+    if (lcd_cursor_col == (entry_mode_i_d ? right_edge+1 : left_edge-1))
         return;
-    }
 
     lcd_send(HIGH, data);
 
