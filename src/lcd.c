@@ -14,7 +14,7 @@
 #include <xc.h>
 #define _XTAL_FREQ 20000000
 
-#define LCD_MODE 0
+#define LCD_MODE 1
 #include "lib/lcd.h"
 
 void main(void)
@@ -25,24 +25,22 @@ void main(void)
     
     lcd_init(_2line, _5x8);
 
-    char c = 'a';
-    unsigned char line = 0;
-    signed curr_col;
+    signed long d = 123456;
 
     lcd_set_cursor(FIRST_ROW, 0);
     while (1) {
-        while (lcd_cursor_col < right_edge+1) {
-            c = (c >= 'a' && c <= 'z') ? c : 'a';
-            lcd_write_char(c++);
-            lcd_cursor_down();
-            __delay_ms(300);
-            lcd_write_char(c++);
-            lcd_cursor_up();
-            __delay_ms(300);
-        }
+        lcd_clr_curr_row();
+        lcd_write_int(d);
 
-        lcd_scroll_anim(1, left_edge, right_edge, 4);
-        lcd_clr_disp();
-        c = 'a';
+        while (!PORTC);
+        if (RC0) {
+            lcd_clr_curr_row();
+            lcd_set_cursor(!lcd_cursor_row, 0);
+        }
+        else if (RC1) d += 125;
+        else if (RC2) d -= 125;
+        else if (RC3) d = -d;
+
+        while(PORTC);
     }
 }
