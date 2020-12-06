@@ -1,4 +1,4 @@
-# LCD
+# lcd-library
 
 My **self-written** libraries for **HD47780-driven** LCDs for PIC MPUs.
 All written **from scratch**.
