@@ -24,17 +24,17 @@ enum {LOW, HIGH};
 
 // MCU to LCD connection
 #define DB_DATA PORTB
-#define DB0 RB0
-#define DB1 RB1
-#define DB2 RB2
-#define DB3 RB3
-#define DB4 RB4
-#define DB5 RB5
-#define DB6 RB6
-#define DB7 RB7
-#define RS RD7
-#define R_W RD6
-#define EN RD5
+#define DB0 PORTBbits.RB0
+#define DB1 PORTBbits.RB1
+#define DB2 PORTBbits.RB2
+#define DB3 PORTBbits.RB3
+#define DB4 PORTBbits.RB4
+#define DB5 PORTBbits.RB5
+#define DB6 PORTBbits.RB6
+#define DB7 PORTBbits.RB7
+#define RS PORTDbits.RD7
+#define R_W PORTDbits.RD6
+#define EN PORTDbits.RD5
 
 // HD44780 Register Selection and modes
 #define IR_write() RS = R_W = 0
