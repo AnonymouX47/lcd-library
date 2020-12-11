@@ -20,32 +20,31 @@
 void main(void)
 {
     TRISA = TRISB = TRISC = TRISD = TRISE = 0x00;
-    // TRISC = 0xFF;
     PORTA = PORTB = PORTC = PORTD = PORTE = 0x00;
-    
+
     lcd_init(_2line, _5x8);
 
-    char c = 'a';
-    unsigned char line = 0;
-    signed curr_col;
-
-    lcd_clr_curr_row();
-    lcd_write_str("Hello World!");
-    __delay_ms(5000);
+    char c = 'a', d;
+    unsigned char line=0, col;
+    lcd_write_int(23123);
+    __delay_ms(2000);
     lcd_clr_curr_row();
     while (1) {
-        while (lcd_cursor_col < right_edge+1) {
-            c = (c >= 'a' && c <= 'z') ? c : 'a';
-            lcd_write_char(c++);
+        c = (c >= 'a' && c <= 'z') ? c : 'a';
+        col = 0;
+        for (int i = 13; i--;) lcd_write_char(c++);
+        for (int i = 13; i--;) {
+            lcd_set_cursor(FIRST_ROW, col++);
+            d = lcd_read_address(), c = lcd_read_char();
+            // lcd_set_cursor(SECOND_ROW, col++);
             lcd_cursor_down();
-            __delay_ms(400);
-            lcd_write_char(c++);
-            lcd_cursor_up();
-            __delay_ms(400);
+            lcd_clr_curr_row();
+            lcd_write_int(d); lcd_cursor_right(1); lcd_write_int(c);
+            __delay_ms(500);
         }
 
-        lcd_scroll_anim(1, left_edge, right_edge, 5);
-        lcd_clr_disp();
-        c = 'a';
+        // lcd_set_cursor(line = !line, 0);
+        // lcd_clr_row(SECOND_ROW);
+        // lcd_clr_disp();
     }
 }
