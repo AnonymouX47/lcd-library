@@ -294,6 +294,8 @@ void lcd_init(bool n, bool f)
     lcd_entry_mode(HIGH, LOW);  // Entry mode set
     lcd_display_set(HIGH, HIGH, HIGH);  // Display ON, Cursor ON, Blinking ON
 
+    __delay_ms(5);
+
     left_edge = 0;
     right_edge = lcd_lines ? LINE1_END2 : LINE1_END1;
 }
