@@ -14,7 +14,7 @@
 #include <xc.h>
 #define _XTAL_FREQ 20000000
 
-#define LCD_MODE 1
+#define LCD_MODE 0
 #include "lib/lcd.h"
 
 void main(void)
@@ -22,29 +22,31 @@ void main(void)
     TRISA = TRISB = TRISC = TRISD = TRISE = 0x00;
     PORTA = PORTB = PORTC = PORTD = PORTE = 0x00;
 
-    lcd_init(_2line, _5x8);
+    lcd_init(_1line, _5x8);
+    lcd_reverse_cursor();
 
-    char c = 'a', d;
+    char c;
     unsigned char line=0, col;
-    lcd_write_int(23123);
-    __delay_ms(2000);
-    lcd_clr_curr_row();
     while (1) {
-        c = (c >= 'a' && c <= 'z') ? c : 'a';
-        col = 0;
-        for (int i = 13; i--;) lcd_write_char(c++);
-        for (int i = 13; i--;) {
-            lcd_set_cursor(FIRST_ROW, col++);
-            d = lcd_read_address(), c = lcd_read_char();
-            // lcd_set_cursor(SECOND_ROW, col++);
-            lcd_cursor_down();
-            lcd_clr_curr_row();
-            lcd_write_int(d); lcd_cursor_right(1); lcd_write_int(c);
+        c = 'a';
+        lcd_goto_end();
+        for (unsigned char i = right_edge+1; i--; c = (c >= 'a' && c <= 'z') ? c : 'a') {
+            lcd_write_char(c++);
+            __delay_ms(300);
+        }
+        __delay_ms(1000);
+        lcd_goto_end();
+        for (unsigned char i = 10; i--;) {
+            lcd_cur_disp_shift(1, 0);
+            __delay_ms(500);
+        }
+        lcd_return_home();
+        __delay_ms(1000);
+        for (unsigned char i = 10; i--;) {
+            lcd_cur_disp_shift(1, 1);
             __delay_ms(500);
         }
 
-        // lcd_set_cursor(line = !line, 0);
-        // lcd_clr_row(SECOND_ROW);
-        // lcd_clr_disp();
+        lcd_clr_disp();
     }
 }
