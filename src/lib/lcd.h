@@ -166,10 +166,13 @@ unsigned char lcd_read(bool reg)
 
 void lcd_clr_disp(void)
 {
+    void lcd_entry_mode(bool i_d, bool s);
+
     lcd_send(LOW, CLR_DISP);
     __delay_ms(2);
 
     lcd_cursor_row = lcd_cursor_col = lcd_shift_pos = 0;
+    lcd_entry_mode(entry_mode_i_d, entry_mode_s);  // Restore 'entry mode'
 }
 
 void lcd_return_home(void)
