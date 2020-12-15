@@ -1,10 +1,13 @@
-compile = xc8-cc -mcpu=16f877a -o dist/lcd
+CXX = xc8-cc -mcpu=16f877a -o
+o = dist
 
-lcd : lcd.p1
-	$(compile) dist/lcd.p1
+test : test/test.c lib/lcd.h  # dist/lcd.p1
+	$(CXX) $(o)/$@ $@/$@.c  # $(o)/lcd.p1
 
-lcd.p1 : src/lcd.c src/lib/lcd.h
-	$(compile) -c src/lcd.c
+# Till after re-write
+#
+# lcd : lib/lcd.c lib/_lcd.h
+#	$(CXX) $(o)/$@ -c lib/$@.c
 
 clean :
 	rm dist/*
