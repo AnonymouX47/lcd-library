@@ -1,6 +1,8 @@
 mplab/
-dist/*
-!*.hex
+dist/
+sim/
+test/
+Makefile
 *.workspace
 *~
 msg
