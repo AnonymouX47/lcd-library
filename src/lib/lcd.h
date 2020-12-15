@@ -113,6 +113,17 @@ __bit entry_mode_i_d, entry_mode_s,
 
 void lcd_wait(void);
 
+// Data Bus Timing Delays
+// data_delay + data_setup > 450ns Min required for Pulse width
+//  Write only
+#define delay_data_setup() __delay_ns(250)  // Data setup time (Min: 195ns)
+//  Read only
+#define delay_data_delay() __delay_ns(350)  // Data delay time (Max: 360ns)
+//  Both
+#define delay_addr_setup() __delay_ns(100)  // Address setup time (Min: 60ns)
+#define delay_en_cycle() __delay_ns(350)  // Make-up for Enable cyle time
+#define delay_hold() __delay_ns(50)  // Address and Data Hold time (Min: 20ns)
+
 // Data Bus Functions START
 
 #if LCD_MODE  // 8-bit
@@ -121,8 +132,16 @@ void lcd_send(bool reg, unsigned char data)
 {
     DB_send();
     if (reg) DR_write(); else IR_write();
+    delay_addr_setup();
+
+    EN = HIGH;
+    delay_data_delay();
     DB_DATA = data;
-    enable(); lcd_wait();
+    delay_data_setup();
+    EN = LOW;
+    delay_hold();
+
+    lcd_wait();
 }
 
 unsigned char lcd_read(bool reg)
