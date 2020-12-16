@@ -3,6 +3,5 @@ dist/
 sim/
 test/
 Makefile
-*.workspace
 *~
 msg
