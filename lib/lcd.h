@@ -196,7 +196,7 @@ void lcd_clr_disp(void)
     void lcd_entry_mode(bool i_d, bool s);
 
     lcd_send(LOW, CLR_DISP);
-    __delay_ms(2);
+    lcd_wait();
 
     lcd_cursor_row = lcd_cursor_col = lcd_shift_pos = 0;
     lcd_entry_mode(entry_mode_i_d, entry_mode_s);  // Restore 'entry mode'
@@ -205,7 +205,7 @@ void lcd_clr_disp(void)
 void lcd_return_home(void)
 {
     lcd_send(LOW, RETURN_HOME);
-    __delay_ms(2);
+    lcd_wait();
 
     lcd_cursor_row = lcd_cursor_col = lcd_shift_pos = 0;
 }
@@ -254,11 +254,7 @@ __bit lcd_set_ddram_adr(unsigned char address)
     return 1;
 }
 
-void lcd_busy(void)
-{
-    lcd_read(LOW);
-    while (BF);
-}
+#define lcd_busy_flag lcd_read(LOW) & 0x80
 
 unsigned char lcd_read_address(void)
 {
@@ -298,13 +294,13 @@ unsigned char lcd_read_char(void)
 
 void lcd_wait(void)
 {
-    __delay_us(40);
+    while (lcd_busy_flag) delay_en_cycle();
 }
 
 /* Initializes LCD */
 void lcd_init(bool n, bool f)
 {
-    TRISD = 0x00;
+    TRISD &= 0x1f;
     n = to_bit(n);  // Still only for 2 lines max
     f = to_bit(f);
 
@@ -316,9 +312,9 @@ void lcd_init(bool n, bool f)
 #else  // 4-bit
     DB_send(); IR_write();
     pulse(send_nibble(FUNCTION_SET));
-    lcd_wait();
+    __delay_ms(40);
     pulse(send_nibble(FUNCTION_SET));
-    lcd_wait();
+    __delay_ms(40);
 #endif
     lcd_function_set(to_bit(LCD_MODE), n, f);
     lcd_display_set(LOW, LOW, LOW);  // Display OFF
