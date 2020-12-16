@@ -116,15 +116,24 @@ void lcd_wait(void);
 // Data Bus Timing Delays
 // data_delay + data_setup > 450ns Min required for Pulse width
 //  Write only
-#define delay_data_setup() __delay_ns(250)  // Data setup time (Min: 195ns)
+#define delay_data_setup() __delay_us(1)  // Data setup time (Min: 195ns)
 //  Read only
-#define delay_data_delay() __delay_ns(350)  // Data delay time (Max: 360ns)
+#define delay_data_delay() __delay_us(1)  // Data delay time (Max: 360ns)
 //  Both
-#define delay_addr_setup() __delay_ns(100)  // Address setup time (Min: 60ns)
-#define delay_en_cycle() __delay_ns(350)  // Make-up for Enable cyle time
-#define delay_hold() __delay_ns(50)  // Address and Data Hold time (Min: 20ns)
+#define delay_addr_setup() __delay_us(1)  // Address setup time (Min: 60ns)
+#define delay_en_cycle() __delay_us(1)  // Make-up for Enable cyle time
+#define delay_hold() __delay_us(1)  // Address and Data Hold time (Min: 20ns)
 
 // Data Bus Functions START
+
+#define pulse(operation) \
+    delay_addr_setup(); \
+    EN = HIGH; \
+    delay_data_delay(); \
+    operation;\
+    delay_data_setup(); \
+    EN = LOW; \
+    delay_hold()
 
 #if LCD_MODE  // 8-bit
 
@@ -132,49 +141,48 @@ void lcd_send(bool reg, unsigned char data)
 {
     DB_send();
     if (reg) DR_write(); else IR_write();
-    delay_addr_setup();
 
-    EN = HIGH;
-    delay_data_delay();
-    DB_DATA = data;
-    delay_data_setup();
-    EN = LOW;
-    delay_hold();
+    pulse(DB_DATA = data);
 
     lcd_wait();
 }
 
-unsigned char lcd_read(bool reg)
+char lcd_read(bool reg)
 {
+    char data = 0;
+
     DB_receive();
     if (reg) DR_read(); else IR_read();
-    enable(); lcd_wait();
-    return DB_DATA;
+
+    pulse(data = DB_DATA);
+
+    return data;
 }
 
 #else  // 4-bit
 
-#define send_nibble(nib) \
-    DB_DATA = (DB_DATA & 0x0f) | (nib & 0xf0);\
-    enable(); lcd_wait()
+#define send_nibble(nib) DB_DATA = (nib) | (DB_DATA & 0x0f)
 
 void lcd_send(bool reg, unsigned char data)
 {
     DB_send();
     if (reg) DR_write(); else IR_write();
-    send_nibble(data);  // upper nibble
-    send_nibble(data << 4);  // lower nibble
+    pulse(send_nibble(data & 0xf0));  // upper nibble
+    pulse(send_nibble(data << 4));  // lower nibble
+
+    lcd_wait();
 }
 
-unsigned char lcd_read(bool reg)
+char lcd_read(bool reg)
 {
+    char data = 0;
+
     DB_receive();
     if (reg) DR_read(); else IR_read();
-    enable(); lcd_wait();
-    unsigned char upper = DB_DATA & 0xF0;
-    enable(); lcd_wait();
+    pulse(data = DB_DATA & 0xf0);
+    pulse(data |= DB_DATA >> 4);
     
-    return upper | DB_DATA >> 4;
+    return data;
 }
 
 #endif
@@ -307,8 +315,10 @@ void lcd_init(bool n, bool f)
     lcd_function_set(_8bit, n, f);
 #else  // 4-bit
     DB_send(); IR_write();
-    send_nibble((FUNCTION_SET | n << 3 | f << 2));
-    send_nibble((FUNCTION_SET | n << 3 | f << 2));
+    pulse(send_nibble(FUNCTION_SET));
+    lcd_wait();
+    pulse(send_nibble(FUNCTION_SET));
+    lcd_wait();
 #endif
     lcd_function_set(to_bit(LCD_MODE), n, f);
     lcd_display_set(LOW, LOW, LOW);  // Display OFF
