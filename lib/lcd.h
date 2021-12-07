@@ -501,23 +501,21 @@ unsigned char lcd_write_str(const char * const restrict s)
 /* Displays an integer `n` of <= 10 digits (long int = 32bit)
  *
  * returns number of characters displayed */
-unsigned char lcd_write_int(unsigned long n)
+unsigned char lcd_write_int(long n)
 {
-    char s[12] = {0}, *p = s + sizeof(s) - 1;
+    char s[11] = {0}, *p = s + sizeof(s) - 1;
 
-    if ((long)n < 0) {
+    if (n < 0) {
         lcd_write_char('-');
-        p--;
-        n = -(long)n;
+        n = -n;
     }
 
-    do *--p = '0' + n % 10;
-    while (p > s && (n /= 10));
+    do *--p = '0' + (unsigned long)n % 10;
+    while (p > s && (n = (unsigned long)n / 10));
     lcd_write_str(p);
 
     return s + sizeof(s) - p - 1;
 }
-
 
 /* Displays a floating-point number `n` with `dp` decimal places
  * and <= 16 digits all together (not including '-' or '.')
