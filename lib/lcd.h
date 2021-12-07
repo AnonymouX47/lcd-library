@@ -456,7 +456,12 @@ void lcd_shift_right(signed char n)
 /* Deletes `n` characters backward on display */
 void lcd_backspace(signed char n)
 {
-    signed char edge = entry_mode_i_d ? left_edge-1 : right_edge+1;
+    signed char edge;
+
+    if (entry_mode_i_d ? lcd_cursor_col <= left_edge : lcd_cursor_col >= right_edge)
+        return;
+
+    edge = entry_mode_i_d ? left_edge-1 : right_edge+1;
 
     // Move over to previous character
     if (entry_mode_i_d) lcd_cursor_left(1);
@@ -464,7 +469,17 @@ void lcd_backspace(signed char n)
 
     lcd_entry_mode(!entry_mode_i_d, LOW);  // Reverse cursor direction
 
-    while(n-- && lcd_cursor_col != edge) lcd_write_char(' ');
+    while(n-- && (entry_mode_i_d ? lcd_cursor_col++ : lcd_cursor_col--) != edge)
+        lcd_send(HIGH, ' ');
+
+    // Compensates for in-/de-crement when the second part of the expression
+    // breaks the loop above.
+    if (n >= 0) lcd_cursor_col += entry_mode_i_d ? -1 : 1;
+
+    if (entry_mode_i_d && lcd_cursor_col > lcd_shift_pos + 15)
+        lcd_shift_left(lcd_cursor_col - lcd_shift_pos - 15);
+    else if (!entry_mode_i_d && lcd_cursor_col < lcd_shift_pos)
+        lcd_shift_right(lcd_shift_pos - lcd_cursor_col);
 
     lcd_entry_mode(!entry_mode_i_d, LOW);  // Restore cursor direction
 
