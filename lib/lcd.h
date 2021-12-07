@@ -266,7 +266,7 @@ void lcd_shift_right(signed char);
 
 void lcd_write_char(char data)
 {
-    if (lcd_cursor_col == (entry_mode_i_d ? right_edge+1 : left_edge-1))
+    if (entry_mode_i_d ? lcd_cursor_col > right_edge : lcd_cursor_col < left_edge)
         return;
 
     lcd_send(HIGH, data);
